@@ -1,0 +1,2 @@
+Tu dois faire en sorte que le bot même après un redem puisse get les joueurs
+qui se font kick / leave le serveur. Y'a un problème avec le guildmemberRemove qu'il faut régler.

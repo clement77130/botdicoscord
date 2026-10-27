@@ -1,0 +1,33 @@
+{
+  "name": "armee-de-terre-rblx-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord Armée de Terre RBLX",
+  "main": "dist/index.js",
+  "scripts": {
+    "predev": "prisma generate && prisma db push --accept-data-loss",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "prisma generate && tsc",
+    "start": "node dist/index.js",
+    "preprod": "prisma generate && prisma db push",
+    "prod": "npm run build && npm start",
+    "deploy": "ts-node src/deploy-commands.ts",
+    "update": "bash update.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.10.0",
+    "discord-html-transcripts": "^3.2.0",
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.5",
+    "ms": "^2.1.3"
+  },
+  "devDependencies": {
+    "@types/ms": "^0.7.34",
+    "@types/node": "^20.11.19",
+    "prisma": "^5.10.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}

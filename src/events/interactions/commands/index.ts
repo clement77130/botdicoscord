@@ -1,0 +1,1 @@
+export { handleCommand } from './execute'; 

@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/database.db"
+}
+
+model Guild {
+  id               String    @id
+  welcomeChannelId String?
+  logChannelId     String?
+  ticketCategoryId String?
+  moderationRoles  String    @default("[]")
+  giveaways       Giveaway[]
+  tickets         Ticket[]
+  invites         Invite[]
+  inviteBonuses   InviteBonus[]
+}
+
+model Invite {
+  id        String   @id
+  guildId   String
+  inviterId String
+  uses      Int      @default(0)
+  left      Int      @default(0)
+  fake      Int      @default(0)
+
+  guild     Guild    @relation(fields: [guildId], references: [id])
+  members   MemberJoin[]
+
+  @@unique([id, guildId])
+}
+
+// Invitations bonus ajoutées à la main par les admins (1 ligne par membre et par serveur)
+model InviteBonus {
+  guildId String
+  userId  String
+  amount  Int    @default(0)
+
+  guild   Guild  @relation(fields: [guildId], references: [id])
+
+  @@id([guildId, userId])
+}
+
+model MemberJoin {
+  memberId  String
+  guildId   String
+  inviteId  String
+  joinedAt  DateTime @default(now())
+
+  invite    Invite   @relation(fields: [inviteId, guildId], references: [id, guildId])
+
+  @@id([memberId, guildId])
+  @@index([inviteId, guildId])
+}
+
+model Ticket {
+  id         String   @id
+  guildId    String
+  userId     String
+  channelId  String
+  category   String
+  status     String   @default("open")
+  createdAt  DateTime @default(now())
+  guild      Guild    @relation(fields: [guildId], references: [id])
+}
+
+model Giveaway {
+  id           String                @id
+  guildId      String
+  channelId    String
+  messageId    String
+  prize        String
+  description  String
+  winners      Int
+  endTime      DateTime
+  hostId       String
+  ended        Boolean               @default(false)
+  guild        Guild                 @relation(fields: [guildId], references: [id])
+  participants GiveawayParticipant[]
+}
+
+model GiveawayParticipant {
+  id          String   @id @default(cuid())
+  giveawayId  String
+  userId      String
+  giveaway    Giveaway @relation(fields: [giveawayId], references: [id])
+}
+
+// ───── Liaison Discord <-> Roblox (système type RoWifi) ─────
+
+// Lien global : un compte Discord est lié à un compte Roblox sur tous les serveurs
+model RobloxLink {
+  discordId      String   @id
+  robloxId       String
+  robloxUsername String
+  linkedAt       DateTime @default(now())
+
+  @@index([robloxId])
+}
+
+// Vérification en attente (code à coller dans la description du profil Roblox)
+model RobloxVerification {
+  discordId      String   @id
+  robloxId       String
+  robloxUsername String
+  code           String
+  expiresAt      DateTime
+}
+
+model RobloxConfig {
+  guildId          String  @id
+  nicknameTemplate String  @default("{roblox-username}")
+  mainGroupId      String?
+  autoUpdateOnJoin Boolean @default(true)
+  autoDetection    Boolean @default(false)
+  logChannelId     String?
+  // Listes d'identifiants de rôles (JSON)
+  verifiedRoles    String  @default("[]")
+  unverifiedRoles  String  @default("[]")
+  stickyRoles      String  @default("[]")
+  bypassRoles      String  @default("[]")
+  // Embed de vérification (JSON : title, description, color, channelId)
+  verifyEmbed      String?
+  // Anciens champs (rôle unique) conservés pour compatibilité, fusionnés avec les listes ci-dessus
+  verifiedRoleId   String?
+  unverifiedRoleId String?
+}
+
+// Association Roblox -> rôles Discord.
+// type : "rank" (groupe + rang exact ou plage), "group" (membre du groupe), "custom" (expression), "asset" (objet/badge/gamepass)
+// Rang 0 = non-membre du groupe (invité).
+model RobloxBind {
+  id        Int     @id @default(autoincrement())
+  guildId   String
+  type      String  @default("rank")
+  groupId   String  @default("")
+  rank      Int?
+  minRank   Int?
+  maxRank   Int?
+  code      String?
+  assetId   String?
+  assetType String?
+  template  String?
+  priority  Int     @default(0)
+  roleIds   String  @default("[]")
+  // Ancien champ (rôle unique) conservé pour compatibilité
+  roleId    String?
+
+  @@index([guildId])
+}
+
+// Liste de refus : un compte Roblox (ou un groupe) qui ne doit pas être accepté sur le serveur
+// type : "user" | "group" | "custom" ; action : "none" (bloque la mise à jour) | "kick" | "ban"
+model RobloxDenylist {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  type      String
+  value     String
+  action    String   @default("none")
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+}
+
+// Journal d'audit de la liaison Roblox (actions des membres et modifications depuis le panel)
+model RobloxAuditLog {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  actorId   String?
+  actorName String?
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+
+  @@index([guildId, createdAt])
+}
+
+// Session de connexion au panel (cookie)
+model DashboardSession {
+  id        String   @id
+  discordId String
+  username  String
+  avatar    String?
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// Session de connexion OAuth (/verify sans pseudo) : l'identifiant sert d'état OAuth, à usage unique
+model RobloxOAuthSession {
+  id           String   @id
+  discordId    String
+  guildId      String
+  codeVerifier String
+  discordOk    Boolean  @default(false)
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+}
